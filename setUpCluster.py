@@ -5,7 +5,7 @@ import urllib.request
 import os
 
 pem="scripts/TFG.pem"
-jar_file="target/WebChatSpringBootTomcat-0.0.1-SNAPSHOT.jar"
+jar_file="target/WebChatSpringBootHazlecast-0.0.1-SNAPSHOT.jar"
 groupName="Cluster"
 count=1
 
@@ -25,10 +25,10 @@ def url_is_alive(dns):
         return False
 
 
-def run(pem, dns, jar_file, is_slave, master_ip):
+def run(pem, dns, jar_file):
     print("RUNNING %s" % dns)
     outfile = open('logs/%s-log.log' % dns, 'w')
-    subprocess.call("./scripts/deploy.sh %s %s %s %s %s &" % (pem, dns, jar_file, str(is_slave), master_ip.replace('.','-') ), shell=True, stdout=outfile, stderr=outfile)
+    subprocess.call("./scripts/deploy.sh %s %s %s &" % (pem, dns, jar_file), shell=True, stdout=outfile, stderr=outfile)
     with open(os.devnull, "w") as f:
         subprocess.call("./scripts/addServerToHA.sh node_%s %s &" % (dns, dns), shell=True, stdout=f, stderr=f)
 
@@ -50,7 +50,10 @@ for instance in [ i.split('\t') for i in res.decode("utf-8").split('\n') if len(
     # ONLY FIRST
     if not have_master:
         have_master = True
-        run(pem, node['DNS'], jar_file, False, node['PRIVATE_IP'])
+        subprocess.call("sed 's/$INTERFACE/%s/' src/main/resources/base.xml > src/main/resources/hazelcast.xml" % node['PRIVATE_IP'], shell=True)
+        print("Running: mvn install")
+        subprocess.call("mvn install", shell=True, stdout=subprocess.PIPE)
+        run(pem, node['DNS'], jar_file)
         node['isMaster'] = True
         master = node
     # OTHERS
@@ -72,7 +75,7 @@ print("Master UP")
 
 for node in nodes:
     if not node['isMaster']:
-        run(pem, node['DNS'], jar_file, True, master['PRIVATE_IP'])
+        run(pem, node['DNS'], jar_file)
 
 for node in nodes:
     if not node['isMaster']:
@@ -81,3 +84,6 @@ for node in nodes:
                 break
             time.sleep( 10 )
         print("NODE: "+node['DNS']+" is UP")
+
+# outfile_ha = open('logs/haproxy.txt', 'w')
+# subprocess.call("haproxy -f haproxy/haproxy.cfg", shell=True, stdout=outfile_ha, stderr=outfile_ha)
