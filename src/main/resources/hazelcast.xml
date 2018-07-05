@@ -10,7 +10,7 @@
             <multicast enabled="false">
             </multicast>
             <tcp-ip enabled="true">
-                  <interface>172.31.17.36</interface>
+                  <interface>172.31.25.45</interface>
             </tcp-ip>
             <aws enabled="false"></aws>
         </join>
